@@ -6,11 +6,9 @@ import yt_dlp
 
 TOKEN = os.getenv("BOT_TOKEN")
 
-# Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🎧 Send me a YouTube link and I'll download the audio!")
 
-# Music command
 async def music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     await update.message.reply_text("⏳ Downloading audio...")
@@ -35,7 +33,6 @@ async def music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
-# Main function
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
