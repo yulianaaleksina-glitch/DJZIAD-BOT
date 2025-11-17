@@ -1,37 +1,47 @@
-from keep_alive import keep_alive
-keep_alive()
 import os
-import subprocess
 from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from keep_alive import keep_alive
+import yt_dlp
 
-BOT_TOKEN = '8533150180:AAGvKHO3pF4VrElFCrnGDbZjK8Ny00SFe1o'
+TOKEN = os.getenv("BOT_TOKEN")
 
-async def download_song(query: str) -> str:
-    output_template = f"{query}.%(ext)s"
-    command = [
-        "yt-dlp",
-        f"ytsearch1:{query}",
-        "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "0",  # best quality (320kbps)
-        "-o", output_template
-    ]
-    subprocess.run(command)
-    filename = f"{query}.mp3"
-    return filename if os.path.exists(filename) else None
+# Start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🎧 Send me a YouTube link and I'll download the audio!")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.message.text
-    await update.message.reply_text(f"Downloading '{query}' in 320kbps MP3...")
-    filename = await download_song(query)
-    if filename:
-        await update.message.reply_audio(audio=open(filename, 'rb'))
-        os.remove(filename)
-    else:
-        await update.message.reply_text("Sorry, I couldn't find or download that song.")
+# Music command
+async def music(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text
+    await update.message.reply_text("⏳ Downloading audio...")
 
-app = Application.builder().token(BOT_TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    try:
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': 'song.%(ext)s',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        }
 
-app.run_polling()
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        await update.message.reply_audio(audio=open("song.mp3", "rb"))
+        os.remove("song.mp3")
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+# Main function
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, music))
+    app.run_polling()
+
+if __name__ == "__main__":
+    keep_alive()
+    main()
